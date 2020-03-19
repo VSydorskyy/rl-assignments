@@ -70,7 +70,7 @@ class DQN(object):
         ########                        TASK 2                            ########
         ##########################################################################
         # Define a loss (Huber loss is preferred) and Adam optimizer:            #
-        self.criterion = nn.MSELoss()
+        # I decided to use F.smooth_l1_loss, which is Huber loss
 
         self.optimizer = torch.optim.Adam(self.value_network.parameters(), lr=learning_rate)
         ##########################################################################
