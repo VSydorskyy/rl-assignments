@@ -1,6 +1,7 @@
 import copy
 from pathlib import Path
 import random
+import math
 
 from gym.spaces import Discrete
 import numpy as np
@@ -9,53 +10,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def polyak_update(target, source, tau):
-    for target_param, param in zip(target.parameters(), source.parameters()):
-        target_param.data.copy_(
-            target_param.data * (1.0 - tau) + param.data * tau
-        )
-
-
 class DQN(object):
     def __init__(
         self,
         value_network,
         action_space,
-        eps,
-        eps_decay,
+        start_eps, final_eps, decay_eps,
         batch_size,
         learning_rate,
         discount_factor,
-        polyak_tau=1.,
-        double=False,
+        update_target_rate,
         cuda=False
     ):
-        """Abstraction for DeepQNetwork agent.
-        
-        Arguments:
-            value_network (nn.Module): NN for value-function approximation.
-            action_space (gym.Space): Action space of the task.
-            eps (float): Initial value for the probability of taking a
-                random action.
-            eps_decay (float): Is subtracted from epsilon on each iteration.
-            batch_size (int): Size of batch that is sampled from ReplayBuffer.
-            learning_rate (float): Adam initial learning rate.
-            discount_factor (float): Gamma from MDPs.
-        Parameters:
-            polyak_tau (float): softness of target network updates.
-                1.0 - hard copy of weights. 0.0 - no copying at all.
-            cuda (bool): whether to use Cuda.
-
-        """
         self.value_network = value_network
         self.target_network = copy.deepcopy(value_network)
-        self.eps = eps
-        self.eps_decay = eps_decay
+        self.start_eps = start_eps
+        self.final_eps = final_eps
+        self.decay_eps = decay_eps
         self.batch_size = batch_size
         self.discount_factor = discount_factor
-        self.tau = polyak_tau
-        self.double = double
+        self.update_target_rate = update_target_rate
         self.cuda = cuda
+
+        self.global_step = 0
 
         assert isinstance(action_space, Discrete), \
             "Action space has to be discrete"
@@ -66,25 +43,15 @@ class DQN(object):
             self.value_network.cuda()
             self.target_network.cuda()
 
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
-        # Define a loss (Huber loss is preferred) and Adam optimizer:            #
-        # I decided to use F.smooth_l1_loss, which is Huber loss
-
         self.optimizer = torch.optim.Adam(self.value_network.parameters(), lr=learning_rate)
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
+
+        if cuda:
+          self.optimizer.cuda()  
 
     def update_target(self):
-        polyak_update(
-            self.target_network,
-            self.value_network,
-            self.tau
-        )
+        self.target_network.load_state_dict(self.value_network.state_dict())
 
-    def update_value(self, replay_buffer):
+    def train_step(self, replay_buffer):
         batch = replay_buffer.sample(self.batch_size)
         v_s0, v_a, v_s1, v_r, v_d = zip(*batch)
 
@@ -101,70 +68,36 @@ class DQN(object):
         v_r = FloatTensor(v_r)
         v_d = FloatTensor(v_d)
 
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
-        #   Here, you should implement the estimation of y_hat - predicted Q     #
-        # value and y - target, i.e. the right-hand side of Bellman equation     #
-
-        #import ipdb; ipdb.set_trace()
-
-        y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1))
-        y = self.target_network(v_s1).detach().max(1)[0] * self.discount_factor + v_r
-
-        if not self.double:
-            pass
-        else:
-            ##########################################################################
-            ########                        TASK 4                            ########
-            ##########################################################################
-            # Double DQN estimation                                                  #
-            pass
-            ##########################################################################
-            ########                        TASK 4                            ########
-            ##########################################################################
-
-        #y = None
-        #y_hat = None
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
+        y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1)).squeeze(-1)
+        y = self.target_network(v_s1).detach().max(1)[0]*(1-v_d) + v_r
 
         loss = F.smooth_l1_loss(y_hat, y)
+
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        return (
-            loss.detach().cpu().item(),
-            y.detach().mean().cpu().item(),
-            y_hat.detach().mean().cpu().item()
-        )
+        if self.global_step % self.update_target_rate == 0:
+            self.update_target()
 
-    def pick_action(self, s, force_greedy=False):
+        self.global_step += 1
+
+        return loss.detach().cpu().item()
+
+    def prediction_step(self, s, force_greedy=False):
         if self.cuda:
             s = s.cuda()
 
+        sample = random.random()
+        eps_threshold = self.start_eps + (self.start_eps - self.final_eps) * math.exp(-1. * self.global_step / self.decay_eps)
 
-        randompolicy = bool(np.random.binomial(n=1, p=self.eps)) and not force_greedy
-
-        if randompolicy:
-            action =  np.random.randint(low=0, high=2)
+        if force_greedy:
+            action =  self.value_network(s).argmax(1).item()
         else:
-            action = self.value_network(s).argmax(1).item()
-
+            if sample > eps_threshold:
+                action = self.value_network(s).argmax(1).item()
+            else:
+                action = self.action_space.sample()
 
         return action
 
-    def update_eps(self):
-        self.eps = max(self.eps - self.eps_decay, 1e-2)
-
-    def save_to(self, path, prefix=None):
-        if prefix is None:
-            path_q = Path(path) / "best.pth"
-        elif isinstance(prefix, str):
-            path_q = Path(path) / ("%s.pth" % prefix)
-        else:
-            raise NotImplementedError
-
-        torch.save(self.value_network.state_dict(), str(path_q))
