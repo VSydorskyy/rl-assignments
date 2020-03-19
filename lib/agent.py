@@ -110,7 +110,7 @@ class DQN(object):
         #import ipdb; ipdb.set_trace()
 
         y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1))
-        y = self.target_network(v_s1).detach().max(1)[0] * self.discount_factor + v_r
+        y = self.target_network(v_s1).detach().max(1)[0] * self.discount_factor * (1-v_d) + v_r
 
         if not self.double:
             pass
@@ -149,7 +149,7 @@ class DQN(object):
         randompolicy = bool(np.random.binomial(n=1, p=self.eps)) and not force_greedy
 
         if randompolicy:
-            action =  np.random.randint(low=0, high=2)
+            action =  self.action_space.sample()
         else:
             action = self.value_network(s).argmax(1).item()
 
