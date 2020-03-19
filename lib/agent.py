@@ -73,6 +73,7 @@ class DQN(object):
         # I decided to use F.smooth_l1_loss, which is Huber loss
 
         self.optimizer = torch.optim.Adam(self.value_network.parameters(), lr=learning_rate)
+        self.loss_func = nn.MSELoss()
         ##########################################################################
         ########                        TASK 2                            ########
         ##########################################################################
@@ -110,7 +111,8 @@ class DQN(object):
         #import ipdb; ipdb.set_trace()
 
         y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1))
-        y = self.target_network(v_s1).detach().max(1)[0] * self.discount_factor * (1-v_d) + v_r
+        y = self.target_network(v_s1).detach().max(1)[0].unsqueeze(1) * self.discount_factor + v_r.unsqueeze(1)
+
 
         if not self.double:
             pass
@@ -130,7 +132,7 @@ class DQN(object):
         ########                        TASK 2                            ########
         ##########################################################################
 
-        loss = F.smooth_l1_loss(y_hat, y)
+        loss = self.loss_func(y_hat, y)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -157,7 +159,7 @@ class DQN(object):
         return action
 
     def update_eps(self):
-        self.eps = max(self.eps - self.eps_decay, 1e-2)
+        self.eps = max(self.eps - self.eps_decay, 1e-5)
 
     def save_to(self, path, prefix=None):
         if prefix is None:
