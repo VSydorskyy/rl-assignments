@@ -11,15 +11,18 @@ class MLP(nn.Module):
             n_out: dimensionality of output space
         """
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(n_input, n_hidden),
-            nn.ReLU(),
-            nn.Linear(n_hidden, n_out),
-        )
+        self.fc1 = nn.Linear(n_input, n_hidden)
+        self.out = nn.Linear(n_hidden, n_out)
+        self.activation = nn.ReLU()
+
+        self.fc1.weight.data.normal_(0, 0.1)
+        self.out.weight.data.normal_(0, 0.1)
 
     def forward(self, x):
-        out = self.mlp(x)
-        return out
+        x = self.fc1(x)
+        x = self.activation(x)
+        actions_value = self.out(x)
+        return actions_value
 
 
 class Flatten(nn.Module):

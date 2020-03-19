@@ -66,16 +66,10 @@ class DQN(object):
             self.value_network.cuda()
             self.target_network.cuda()
 
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
-        # Define a loss (Huber loss is preferred) and Adam optimizer:            #
         # I decided to use F.smooth_l1_loss, which is Huber loss
+        self.loss_function = nn.MSELoss()
 
         self.optimizer = torch.optim.Adam(self.value_network.parameters(), lr=learning_rate)
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
 
     def update_target(self):
         polyak_update(
@@ -101,16 +95,10 @@ class DQN(object):
         v_r = FloatTensor(v_r)
         v_d = FloatTensor(v_d)
 
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
-        #   Here, you should implement the estimation of y_hat - predicted Q     #
-        # value and y - target, i.e. the right-hand side of Bellman equation     #
-
-        #import ipdb; ipdb.set_trace()
-
         y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1))
-        y = self.target_network(v_s1).detach().max(1)[0] * self.discount_factor * (1-v_d) + v_r
+        y_target = self.target_network(v_s1).detach()
+        y = y_target.max(1)[0] * self.discount_factor * (1-v_d) + v_r
+        y = y.unsqueeze(1)
 
         if not self.double:
             pass
@@ -123,12 +111,6 @@ class DQN(object):
             ##########################################################################
             ########                        TASK 4                            ########
             ##########################################################################
-
-        #y = None
-        #y_hat = None
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
 
         loss = F.smooth_l1_loss(y_hat, y)
         self.optimizer.zero_grad()
