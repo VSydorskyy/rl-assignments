@@ -2,10 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-##########################################################################
-########                        TASK 1                            ########
-##########################################################################
-# Implement Fully-connected neural network with two layers               #
 class MLP(nn.Module):
     def __init__(self, n_input, n_hidden, n_out):
         """
@@ -15,13 +11,15 @@ class MLP(nn.Module):
             n_out: dimensionality of output space
         """
         super().__init__()
-        pass
+        self.mlp = nn.Sequential(
+            nn.Linear(n_input, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_out),
+        )
 
     def forward(self, x):
-        return x
-##########################################################################
-########                        TASK 1                            ########
-##########################################################################
+        out = self.mlp(x)
+        return out
 
 
 class Flatten(nn.Module):

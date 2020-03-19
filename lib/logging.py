@@ -23,7 +23,7 @@ class Logger(object):
 
         self.vals_dict = {}
         self.count_dict = {}
-        self.tb_handler = TensorboardHadler(log_dir, unique_prefix)
+        #self.tb_handler = TensorboardHadler(log_dir, unique_prefix)
         self.csv_handler = CsvHandler(log_dir, unique_prefix)
 
         LOGGER = self
@@ -69,7 +69,7 @@ class Logger(object):
             else:
                 kvs[k] = v
 
-        self.tb_handler.write_logs(kvs)
+        #self.tb_handler.write_logs(kvs)
         self.csv_handler.write_logs(kvs)
         write_stdout(kvs)
 
@@ -77,7 +77,7 @@ class Logger(object):
         self.count_dict.clear()
 
     def close():
-        self.tb_handler.close()
+        #self.tb_handler.close()
         self.csv_handler.close()
 
 

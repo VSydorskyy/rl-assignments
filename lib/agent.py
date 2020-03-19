@@ -5,6 +5,8 @@ import random
 from gym.spaces import Discrete
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 def polyak_update(target, source, tau):
@@ -68,9 +70,9 @@ class DQN(object):
         ########                        TASK 2                            ########
         ##########################################################################
         # Define a loss (Huber loss is preferred) and Adam optimizer:            #
-        self.criterion = None
+        self.criterion = nn.MSELoss()
 
-        self.optimizer = None
+        self.optimizer = torch.optim.Adam(self.value_network.parameters(), lr=learning_rate)
         ##########################################################################
         ########                        TASK 2                            ########
         ##########################################################################
@@ -105,6 +107,11 @@ class DQN(object):
         #   Here, you should implement the estimation of y_hat - predicted Q     #
         # value and y - target, i.e. the right-hand side of Bellman equation     #
 
+        #import ipdb; ipdb.set_trace()
+
+        y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1))
+        y = self.target_network(v_s1).detach().max(1)[0] * self.discount_factor + v_r
+
         if not self.double:
             pass
         else:
@@ -117,13 +124,13 @@ class DQN(object):
             ########                        TASK 4                            ########
             ##########################################################################
 
-        y = None
-        y_hat = None
+        #y = None
+        #y_hat = None
         ##########################################################################
         ########                        TASK 2                            ########
         ##########################################################################
 
-        loss = self.criterion(y_hat, y)
+        loss = F.smooth_l1_loss(y_hat, y)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -137,15 +144,17 @@ class DQN(object):
     def pick_action(self, s, force_greedy=False):
         if self.cuda:
             s = s.cuda()
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
-        # Implement epsilon-greedy policy using value_network. Also, you will    #
-        # need to pick greedy actions if `force_greedy` is True                  #
-        return None
-        ##########################################################################
-        ########                        TASK 2                            ########
-        ##########################################################################
+
+
+        randompolicy = bool(np.random.binomial(n=1, p=self.eps)) and not force_greedy
+
+        if randompolicy:
+            action =  np.random.randint(low=0, high=2)
+        else:
+            action = self.value_network(s).argmax(1).item()
+
+
+        return action
 
     def update_eps(self):
         self.eps = max(self.eps - self.eps_decay, 1e-2)
