@@ -159,3 +159,28 @@ def write_stdout(kvs):
     lines.append(dashes)
     sys.stdout.write('\n'.join(lines) + '\n')
     sys.stdout.flush()
+
+
+class MyLogger(object):
+    def __init__(self):
+        self.livetime = []
+        self.reward = []
+        self.losses = []
+        self.q_value = []
+        self.died = []
+
+    def update_all(self, r, l, q, d):
+        self.reward.append(r)
+        self.losses.append(l)
+        self.q_value.append(q)
+        self.died.append(d)
+
+    def update_lt(self, lt):
+        self.livetime.append(lt)
+
+    def summarize(self):
+        self.livetime = np.array(self.livetime)
+        self.reward = np.array(self.reward)
+        self.losses = np.array(self.losses)
+        self.q_value = np.array(self.q_value)
+        self.died = np.array(self.died)
