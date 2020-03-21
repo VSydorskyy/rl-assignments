@@ -2,11 +2,6 @@ import random
 import numpy as np
 
 
-##########################################################################
-########                        TASK 0                            ########
-##########################################################################
-# Implement ReplayBuffer class. See docstrings for details               #
-
 class ReplayBuffer(object):
     def __init__(self, capacity):
         self.capacity = capacity
@@ -14,6 +9,8 @@ class ReplayBuffer(object):
 
     def push(self, obs_prev, act, obs_cur, rew, done):
         self.memory.append((obs_prev, act, obs_cur, rew, done))
+
+        # if memory is overflowed - delete first element
         if len(self.memory) > self.capacity:
             del self.memory[0]
 
@@ -22,7 +19,3 @@ class ReplayBuffer(object):
 
     def __len__(self):
         return len(self.memory)
-
-##########################################################################
-########                        TASK 0                            ########
-##########################################################################

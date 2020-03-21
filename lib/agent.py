@@ -67,7 +67,6 @@ class DQN(object):
             self.target_network.cuda()
 
         # I decided to use F.smooth_l1_loss, which is Huber loss
-        self.loss_function = nn.MSELoss()
 
         self.optimizer = torch.optim.Adam(self.value_network.parameters(), lr=learning_rate)
 
@@ -95,23 +94,27 @@ class DQN(object):
         v_r = FloatTensor(v_r)
         v_d = FloatTensor(v_d)
 
+        # predict Q for previous state
+        # and then choose predicion only from occured actions
         y_hat = self.value_network(v_s0).gather(1, v_a.unsqueeze(1))
+        # predict current state and detach from graph
         y_target = self.target_network(v_s1).detach()
-        y = y_target.max(1)[0] * self.discount_factor * (1-v_d) + v_r
-        y = y.unsqueeze(1)
 
         if not self.double:
-            pass
+            # Q_target(argmax_a(Q_target)) * gamma + reward
+            # take into account only non final states
+            y = y_target.max(1)[0] * self.discount_factor * (1-v_d) + v_r
+            # add external dimension in order to compute loss correctly
+            y = y.unsqueeze(1)
         else:
-            ##########################################################################
-            ########                        TASK 4                            ########
-            ##########################################################################
-            # Double DQN estimation                                                  #
-            pass
-            ##########################################################################
-            ########                        TASK 4                            ########
-            ##########################################################################
+            value_argmax = self.value_network(v_s1).detach().argmax(1)
+            y_target = y_target.gather(1, value_argmax.unsqueeze(1))
+            # Q_target(argmax_a(Q_value)) * gamma + reward
+            # take into account only non final states
+            # also adding extra dimension for correct loss computation
+            y = y_target * self.discount_factor * (1-v_d.unsqueeze(1)) + v_r.unsqueeze(1)
 
+        # Compute Huber loss
         loss = F.smooth_l1_loss(y_hat, y)
         self.optimizer.zero_grad()
         loss.backward()
@@ -127,12 +130,14 @@ class DQN(object):
         if self.cuda:
             s = s.cuda()
 
-
+        # sample from bernouli 'use random policy'
         randompolicy = bool(np.random.binomial(n=1, p=self.eps)) and not force_greedy
 
         if randompolicy:
+            # sample from action space random policy
             action =  self.action_space.sample()
         else:
+            # choose argmax_a(Q_value)
             action = self.value_network(s).argmax(1).item()
 
 

@@ -15,6 +15,7 @@ class MLP(nn.Module):
         self.out = nn.Linear(n_hidden, n_out)
         self.activation = nn.ReLU()
 
+        # fix initial weights distribution for stability 
         self.fc1.weight.data.normal_(0, 0.1)
         self.out.weight.data.normal_(0, 0.1)
 

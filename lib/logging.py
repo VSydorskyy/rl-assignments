@@ -9,7 +9,9 @@ import numpy as np
 PATH = Path(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_RESULT_DIR = PATH / "../results"
 
-
+# TensorboardHadler seems not to work
+# There is a newer version of tensorboard -
+# TensorboardX
 class Logger(object):
     LOGGER = None
 
