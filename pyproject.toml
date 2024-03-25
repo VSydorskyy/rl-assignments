@@ -19,6 +19,8 @@ yacs = "^0.1.8"
 matplotlib = "^3.8.3"
 gym = "0.15.4"
 box2d-py = "2.3.5"
+tensorflow = "^2.16.1"
+ale-py = "^0.8.1"
 
 
 [build-system]
